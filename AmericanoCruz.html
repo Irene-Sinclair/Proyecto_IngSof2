@@ -303,6 +303,7 @@ const $$ = s => [...document.querySelectorAll(s)];
 const money = n => `L ${Number(n || 0).toFixed(2)}`;
 const PORTAL_URL = "https://irene-sinclair.github.io/Proyecto_IngSof2/AmericanoCruz.html";
 const CONFIRM_URL = PORTAL_URL + "?confirmed=1";
+const RECOVERY_URL = PORTAL_URL + "?recovery=1";
 
 const escapeHtml = v => String(v ?? '').replace(/[&<>'\"]/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'
@@ -496,7 +497,7 @@ $('#forgotPasswordForm').addEventListener('submit', async e => {
   setBusy(btn, true, 'Enviando...');
   try {
     const email = $('#forgotEmail').value.trim().toLowerCase();
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: PORTAL_URL });
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: RECOVERY_URL });
     if (error) return showAuthMessage(friendlyError(error));
     showAuthMessage('Si el correo está registrado, recibirás un enlace para cambiar tu contraseña.', true);
   } finally {
@@ -880,7 +881,7 @@ $('#saveProfileBtn').onclick = async () => {
 
 $('#changePasswordBtn').onclick = async () => {
   $('#profileMsg').style.color = '#b42318';
-  const { error } = await sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: PORTAL_URL });
+  const { error } = await sb.auth.resetPasswordForEmail(currentUser.email, { redirectTo: RECOVERY_URL });
   if (error) return $('#profileMsg').textContent = friendlyError(error);
   $('#profileMsg').style.color = 'green';
   $('#profileMsg').textContent = 'Te enviamos un enlace de seguridad a tu correo para cambiar la contraseña.';
@@ -1048,8 +1049,17 @@ window.addEventListener('unhandledrejection', e => console.error('Error no contr
   const isEmailConfirmation =
     query.get('confirmed') === '1' ||
     hash.get('type') === 'signup';
+  const isPasswordRecovery =
+    query.get('recovery') === '1' ||
+    hash.get('type') === 'recovery';
 
   const { data: { session } } = await sb.auth.getSession();
+
+  if (isPasswordRecovery && session?.user) {
+    currentUser = session.user;
+    showResetPassword();
+    return;
+  }
 
   if (isEmailConfirmation) {
     const confirmedEmail = session?.user?.email || localStorage.getItem('ac_pending_email') || '';
